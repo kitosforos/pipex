@@ -35,18 +35,36 @@ char	*check_path(char **envp, char **cmd)
 			free(path2);
 		i++;
 	}
-	perror("Error: ");
-	exit(EXIT_FAILURE);
+	i = -1;
+	while (paths[++i])
+		free(paths[i]);
+	free(paths);
+	return(0);
 }
 
 void	execute(char *argv, char *envp[])
 {
 	char	**cmd;
 	char	*path;
+	int	i;
 
+	i = -1;
 	cmd = ft_split(argv, ' ');
 	path = check_path(envp, cmd);
-	execve(path, cmd, envp);
+	if (!path)
+	{
+		while (cmd[++i])
+			free(cmd[i]);
+		free(cmd);
+		perror("Error");
+		exit(EXIT_FAILURE);
+	}
+	if (execve(path, cmd, envp) == -1)
+	{
+		perror("Error");
+		exit(EXIT_FAILURE);
+	}
+	free(cmd);
 }
 
 void	child_process(int *pip, char *argv, char **envp)
@@ -60,7 +78,6 @@ void	child_process(int *pip, char *argv, char **envp)
 void	parent_process(int *pip, char *argv, char **envp, int fd2)
 {
 	close(pip[WRITE_END]);
-	fd2 = open(argv, O_WRONLY | O_CREAT | O_TRUNC, S_IRWXU);
 	dup2(pip[READ_END], STDIN_FILENO);
 	close(pip[READ_END]);
 	dup2(fd2, STDOUT_FILENO);
@@ -91,7 +108,8 @@ int	main(int argc, char *argv[], char *envp[])
 		child_process(pip, argv[2], envp);
 	else
 	{
-		fd2 = open(argv[3], O_WRONLY | O_CREAT | O_TRUNC, S_IRWXU);
+		waitpid(p, NULL, 0);
+		fd2 = open(argv[4], O_WRONLY | O_CREAT | O_TRUNC, S_IRWXU);
 		parent_process(pip, argv[3], envp, fd2);
 	}
 }
